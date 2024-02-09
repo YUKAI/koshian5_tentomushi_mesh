@@ -246,6 +246,17 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
   KoshianMeshSetupNotifier(this.ref) : super(KoshianMeshSetupState.ready);
 
   Future<bool> setup(BleScannedDevice device) async {
+    bool ret = false;
+    for (var tries=0; tries<3; tries++) {
+      ret = await _setupTry(device);
+      if (ret == true) {
+        break;
+      }
+    }
+    return ret;
+  }
+
+  Future<bool> _setupTry(BleScannedDevice device) async {
     if (state != KoshianMeshSetupState.ready) {
       return false;
     }
@@ -268,6 +279,7 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
       if (!await connectionCompleter.future.timeout(const Duration(seconds: 12), onTimeout: () => false)) {
         throw "Connection error";
       }
+      FlutterReactiveBle().discoverAllServices(device.id);
       state = KoshianMeshSetupState.koshianSettings;
       final settingsCmdC12c = QualifiedCharacteristic(
           serviceId: Uuid.parse(konashiSettingsServiceUuid),

@@ -15,15 +15,7 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   List<Map<String, dynamic>> meshNodes = [];
 
-  NetworkKey? meshNetworkKey;
-  IMeshNetwork? meshNetwork;
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  Future<void> getNodesList() async {
+  Future<void> getNodesList(IMeshNetwork? meshNetwork) async {
     List<Map<String, dynamic>> newMeshNodes = [];
     var nodes = await meshNetwork?.nodes ?? [];
     logger.i("Mesh nodes: $nodes");
@@ -41,11 +33,11 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    meshNetworkKey = ref.watch(meshNetworkKeyProvider);
-    meshNetwork = ref.watch(meshNetworkProvider);
-    ref.listen(meshNetworkProvider, (previous, next) {
+    NetworkKey? meshNetworkKey = ref.watch(meshNetworkKeyProvider);
+    IMeshNetwork? meshNetwork = ref.watch(meshNetworkProvider);
+    ref.listen(meshNetworkProvider, (previous, next) async {
       if (next != null) {
-        getNodesList();
+        await getNodesList(next);
       }
     });
     return Scaffold(
@@ -69,7 +61,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             Text("Network key: ${meshNetworkKey?.netKeyBytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join("") ?? "null"}"),
             OutlinedButton(
               onPressed: () async {
-                await getNodesList();
+                await getNodesList(meshNetwork);
               },
               child: const Text("Get nodes")
             ),

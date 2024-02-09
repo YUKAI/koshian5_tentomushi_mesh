@@ -187,10 +187,9 @@ packages:
   nordic_nrf_mesh:
     dependency: "direct main"
     description:
-      name: nordic_nrf_mesh
-      sha256: "721bff97668c181ed7a6a3a0b47febe49be15d10acb2b4980c4b09d16714182e"
-      url: "https://pub.dev"
-    source: hosted
+      path: nrf_mesh_plugin
+      relative: true
+    source: path
     version: "0.13.0"
   path:
     dependency: transitive

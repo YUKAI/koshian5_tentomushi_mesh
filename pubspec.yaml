@@ -39,7 +39,8 @@ dependencies:
   flutter_riverpod: ^2.3.6
   go_router: ^13.1.0
   permission_handler: ^11.1.0
-  nordic_nrf_mesh: ^0.13.0
+  nordic_nrf_mesh:
+    path: ./nrf_mesh_plugin
   flutter_reactive_ble: ^5.3.1
 
 dev_dependencies:
