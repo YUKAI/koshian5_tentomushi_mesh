@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -102,5 +103,120 @@ class MeshNetworkKeyNotifier extends StateNotifier<NetworkKey?> {
 
 final meshNetworkKeyProvider = StateNotifierProvider<MeshNetworkKeyNotifier, NetworkKey?>((ref) {
   var inst = MeshNetworkKeyNotifier(ref);
+  return inst;
+});
+
+
+// ------------------------------------------------------------------------------------
+// - Bluetooth scan state provider.
+
+class BleScannedDevice {
+  final String id;
+  String _name;
+  String get name => _name;
+  final Map<Uuid, Uint8List> _serviceData;
+  Map<Uuid, Uint8List> get serviceData => _serviceData;
+  List<Uuid> _serviceUuids;
+  List<Uuid> get serviceUuids => _serviceUuids;
+  final List<Uint8List> _manufacturerData;
+  List<Uint8List> get manufacturerData => _manufacturerData;
+  int _rssi;
+  int get rssi => _rssi;
+  Connectable _connectable;
+  Connectable get connectable => _connectable;
+
+  BleScannedDevice(DiscoveredDevice discoveredDevice) :
+    id = discoveredDevice.id,
+    _name = discoveredDevice.name,
+    _serviceData = discoveredDevice.serviceData,
+    _serviceUuids = discoveredDevice.serviceUuids.toList(),
+    _manufacturerData = discoveredDevice.manufacturerData.length >= 2 ? [discoveredDevice.manufacturerData] : [],
+    _rssi = discoveredDevice.rssi,
+    _connectable = discoveredDevice.connectable
+  ;
+
+  void updateDevice(DiscoveredDevice updatedDevice) {
+    if (id != updatedDevice.id) {
+      return;
+    }
+    if (updatedDevice.name.isNotEmpty) {
+      _name = updatedDevice.name;
+    }
+    updatedDevice.serviceData.forEach((key, value) {
+      _serviceData[key] = value;
+    });
+    if (updatedDevice.manufacturerData.length >= 2) {
+      var newManufacturerId = updatedDevice.manufacturerData[0] + (updatedDevice.manufacturerData[1]<<8);
+      bool hasManufacturerId = false;
+      for (var i=0; i<_manufacturerData.length; i++) {
+        var manufacturerId = _manufacturerData[i][0] + (_manufacturerData[i][1]<<8);
+        if (newManufacturerId == manufacturerId) {
+          _manufacturerData[i] = updatedDevice.manufacturerData;
+          hasManufacturerId = true;
+        }
+      }
+      if (!hasManufacturerId) {
+        _manufacturerData.add(updatedDevice.manufacturerData);
+      }
+    }
+    _rssi = updatedDevice.rssi;
+    for (var value in updatedDevice.serviceUuids) {
+      if (!_serviceUuids.contains(value)) {
+        _serviceUuids.add(value);
+      }
+    }
+    _connectable = _connectable != Connectable.available ? updatedDevice.connectable : Connectable.available;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+          other is BleScannedDevice &&
+              runtimeType == other.runtimeType &&
+              id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+
+class BleScannedDeviceNotifier extends StateNotifier<List<BleScannedDevice>> {
+  final Ref ref;
+
+  BleScannedDeviceNotifier(this.ref) : super([]);
+
+  StreamSubscription<DiscoveredDevice>? _scanListener;
+
+  Future<bool> scanStart() async {
+    if (_scanListener != null) {
+      return true;
+    }
+    var isOn = await ref.read(bluetoothInitProvider.notifier).init();
+    if (!isOn) {
+      return false;
+    }
+    _scanListener = FlutterReactiveBle().scanForDevices(
+      withServices: []
+    ).listen((result) {
+      BleScannedDevice c = BleScannedDevice(result);
+      var i = state.indexOf(c);
+      if (i > -1) {
+        state[i].updateDevice(result);
+      } else {
+        state.add(c);
+      }
+      state = [...state];
+    });
+    return true;
+  }
+
+  void scanStop() async {
+    await _scanListener?.cancel();
+    _scanListener = null;
+    state = [];
+  }
+}
+
+final bleScannerProvider = StateNotifierProvider<BleScannedDeviceNotifier, List<BleScannedDevice>>((ref) {
+  var inst = BleScannedDeviceNotifier(ref);
   return inst;
 });
