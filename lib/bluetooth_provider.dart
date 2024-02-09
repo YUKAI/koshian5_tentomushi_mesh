@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:koshian5_tentomushi_mesh/debug.dart';
+import 'package:nordic_nrf_mesh/nordic_nrf_mesh.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 // ------------------------------------------------------------------------------------
@@ -54,5 +55,52 @@ final bluetoothInitProvider =
     StateNotifierProvider<BluetoothAdapterStateNotifier, BleStatus>(
         (ref) {
   var inst = BluetoothAdapterStateNotifier(ref);
+  return inst;
+});
+
+
+// ------------------------------------------------------------------------------------
+// - Mesh entry point.
+
+final nordicNrfMesh = NordicNrfMesh();
+
+
+// ------------------------------------------------------------------------------------
+// - Mesh network provider.
+
+class MeshNetworkNotifier extends StateNotifier<IMeshNetwork?> {
+  final Ref ref;
+
+  MeshNetworkNotifier(this.ref) : super(null) {
+    nordicNrfMesh.meshManagerApi.loadMeshNetwork().then((network) {
+      state = network;
+    });
+  }
+}
+
+final meshNetworkProvider = StateNotifierProvider<MeshNetworkNotifier, IMeshNetwork?>((ref) {
+  var inst = MeshNetworkNotifier(ref);
+  return inst;
+});
+
+
+// ------------------------------------------------------------------------------------
+// - Mesh network key provider.
+
+class MeshNetworkKeyNotifier extends StateNotifier<NetworkKey?> {
+  final Ref ref;
+
+  MeshNetworkKeyNotifier(this.ref) : super(null) {
+    ref.listen(meshNetworkProvider, (previous, next) async {
+      if (next != null) {
+        state = await next.getNetKey(0);
+        state ??= await next.generateNetKey();
+      }
+    });
+  }
+}
+
+final meshNetworkKeyProvider = StateNotifierProvider<MeshNetworkKeyNotifier, NetworkKey?>((ref) {
+  var inst = MeshNetworkKeyNotifier(ref);
   return inst;
 });
