@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:koshian5_tentomushi_mesh/bluetooth_provider.dart';
+import 'package:koshian5_tentomushi_mesh/router.dart';
 import 'package:nordic_nrf_mesh/nordic_nrf_mesh.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -19,6 +20,14 @@ class _HomePageState extends ConsumerState<HomePage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text("テントウムシ"),
+        actions: [
+          IconButton(
+            onPressed: () {
+              ref.read(routerProvider).push('/addDevice');
+            },
+            icon: const Icon(Icons.add)
+          ),
+        ],
       ),
       body: Center(
         child: Column(
