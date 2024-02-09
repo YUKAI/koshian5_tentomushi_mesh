@@ -36,6 +36,7 @@ class _AddDevicePageState extends ConsumerState<AddDevicePage> {
     final scannedDeviceList = ref.watch(bleScannerProvider).where((device) {
       return device.serviceUuids.contains(Uuid.parse(konashiSettingsServiceUuid));
     });
+    final deviceSetupState = ref.watch(koshianMeshSetupProvider);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -46,7 +47,10 @@ class _AddDevicePageState extends ConsumerState<AddDevicePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: scannedDeviceList.map((e) {
             return InkWell(
-                onTap: () {
+                onTap: deviceSetupState != KoshianMeshSetupState.ready ? null : () async {
+                  _bleScannedDeviceNotifier.scanStop();
+                  await ref.read(koshianMeshSetupProvider.notifier).setup(e);
+                  _bleScannedDeviceNotifier.scanStart();
                 },
                 child: Container(
                     padding: const EdgeInsets.fromLTRB(24+10.0, 15.0, 10.0, 15.0),

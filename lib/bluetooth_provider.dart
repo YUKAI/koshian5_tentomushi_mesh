@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:koshian5_tentomushi_mesh/consts.dart';
 import 'package:koshian5_tentomushi_mesh/debug.dart';
 import 'package:nordic_nrf_mesh/nordic_nrf_mesh.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -77,6 +78,12 @@ class MeshNetworkNotifier extends StateNotifier<IMeshNetwork?> {
       state = network;
     });
   }
+
+  Future<void> reset() async {
+    state = null;
+    await nordicNrfMesh.meshManagerApi.resetMeshNetwork();
+    state = await nordicNrfMesh.meshManagerApi.loadMeshNetwork();
+  }
 }
 
 final meshNetworkProvider = StateNotifierProvider<MeshNetworkNotifier, IMeshNetwork?>((ref) {
@@ -116,7 +123,7 @@ class BleScannedDevice {
   String get name => _name;
   final Map<Uuid, Uint8List> _serviceData;
   Map<Uuid, Uint8List> get serviceData => _serviceData;
-  List<Uuid> _serviceUuids;
+  final List<Uuid> _serviceUuids;
   List<Uuid> get serviceUuids => _serviceUuids;
   final List<Uint8List> _manufacturerData;
   List<Uint8List> get manufacturerData => _manufacturerData;
@@ -218,5 +225,145 @@ class BleScannedDeviceNotifier extends StateNotifier<List<BleScannedDevice>> {
 
 final bleScannerProvider = StateNotifierProvider<BleScannedDeviceNotifier, List<BleScannedDevice>>((ref) {
   var inst = BleScannedDeviceNotifier(ref);
+  return inst;
+});
+
+
+// ------------------------------------------------------------------------------------
+// - Koshian device mesh setup provider.
+
+enum KoshianMeshSetupState {
+  ready,
+  connecting,
+  koshianSettings,
+  unprovisionedScan,
+  provisioning,
+}
+
+class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
+  final Ref ref;
+
+  KoshianMeshSetupNotifier(this.ref) : super(KoshianMeshSetupState.ready);
+
+  Future<bool> setup(BleScannedDevice device) async {
+    if (state != KoshianMeshSetupState.ready) {
+      return false;
+    }
+    // connect
+    state = KoshianMeshSetupState.connecting;
+    final connectionCompleter = Completer<bool>();
+    StreamSubscription<ConnectionStateUpdate>? connectionListener;
+    final unprovisionedScanCompleter = Completer<DiscoveredDevice?>();
+    StreamSubscription<DiscoveredDevice>? unprovisionedScanListener;
+    try {
+      connectionListener = FlutterReactiveBle().connectToAdvertisingDevice(
+        id: device.id,
+        withServices: [],
+        prescanDuration: const Duration(seconds: 10)
+      ).listen((connection) {
+        if (connection.connectionState == DeviceConnectionState.connected) {
+          connectionCompleter.complete(true);
+        }
+      });
+      if (!await connectionCompleter.future.timeout(const Duration(seconds: 12), onTimeout: () => false)) {
+        throw "Connection error";
+      }
+      state = KoshianMeshSetupState.koshianSettings;
+      final settingsCmdC12c = QualifiedCharacteristic(
+          serviceId: Uuid.parse(konashiSettingsServiceUuid),
+          characteristicId: Uuid.parse(konashiSettingsCommandC12cUuid),
+          deviceId: device.id
+      );
+      final systemSettingsC12c = QualifiedCharacteristic(
+          serviceId: Uuid.parse(konashiSettingsServiceUuid),
+          characteristicId: Uuid.parse(konashiSystemSettingsGetC12cUuid),
+          deviceId: device.id
+      );
+      final bluetoothSettingsC12c = QualifiedCharacteristic(
+          serviceId: Uuid.parse(konashiSettingsServiceUuid),
+          characteristicId: Uuid.parse(konashiBluetoothSettingsGetC12cUuid),
+          deviceId: device.id
+      );
+      // enable NVM
+      FlutterReactiveBle().subscribeToCharacteristic(systemSettingsC12c).listen((data) {
+        logger.i("System settings update: $data");
+      });
+      await FlutterReactiveBle().writeCharacteristicWithResponse(settingsCmdC12c, value: [0x01,0x01,0x01]);
+      // enable mesh
+      FlutterReactiveBle().subscribeToCharacteristic(bluetoothSettingsC12c).listen((data) {
+        logger.i("Bluetooth settings update: $data");
+      });
+      await FlutterReactiveBle().writeCharacteristicWithResponse(settingsCmdC12c, value: [0x02,0x01]);
+      // TODO: setup I/Os
+      await connectionListener.cancel();
+      state = KoshianMeshSetupState.unprovisionedScan;
+      unprovisionedScanListener = nordicNrfMesh.scanForUnprovisionedNodes().listen((scannedDevice) {
+        if (device.id == scannedDevice.id) {
+          unprovisionedScanCompleter.complete(scannedDevice);
+        }
+      });
+      var unprovisionedDevice = await unprovisionedScanCompleter.future.timeout(const Duration(seconds: 10), onTimeout: () => null);
+      if (unprovisionedDevice == null) {
+        throw "Unprovisioned scan error";
+      }
+      await unprovisionedScanListener.cancel();
+      final deviceUuid = Uuid.parse(
+          nordicNrfMesh.meshManagerApi.getDeviceUuid(
+              unprovisionedDevice.serviceData[meshProvisioningUuid]!.toList()
+          )
+      ).toString();
+      logger.i("Device UUID: $deviceUuid");
+      state = KoshianMeshSetupState.provisioning;
+      final provisioningEvent = ProvisioningEvent();
+      provisioningEvent.onProvisioning.listen((event) {
+        logger.i("onProvisioning $event");
+      });
+      provisioningEvent.onProvisioningCapabilities.listen((event) {
+        logger.i("onProvisioningCapabilities $event");
+      });
+      provisioningEvent.onProvisioningInvitation.listen((event) {
+        logger.i("onProvisioningInvitation $event");
+      });
+      provisioningEvent.onProvisioningReconnect.listen((event) {
+        logger.i("onProvisioningReconnect $event");
+      });
+      provisioningEvent.onConfigCompositionDataStatus.listen((event) {
+        logger.i("onConfigCompositionDataStatus $event");
+      });
+      provisioningEvent.onConfigAppKeyStatus.listen((event) {
+        logger.i("onConfigAppKeyStatus $event");
+      });
+      provisioningEvent.onProvisioningGattError.listen((event) {
+        logger.i("onProvisioningGattError $event");
+      });
+      var provisionedNode = await nordicNrfMesh.provisioning(
+          nordicNrfMesh.meshManagerApi,
+          BleMeshManager(),
+          unprovisionedDevice,
+          deviceUuid,
+          events: provisioningEvent,
+      ).timeout(const Duration(minutes: 1));
+      logger.i("Provisioned node: $provisionedNode");
+      state = KoshianMeshSetupState.ready;
+    }
+    catch (e) {
+      logger.i("Failed: $e");
+      await unprovisionedScanListener?.cancel();
+      if (!unprovisionedScanCompleter.isCompleted) {
+        unprovisionedScanCompleter.complete(null);
+      }
+      await connectionListener?.cancel();
+      if (!connectionCompleter.isCompleted) {
+        connectionCompleter.complete(false);
+      }
+      state = KoshianMeshSetupState.ready;
+      return false;
+    }
+    return true;
+  }
+}
+
+final koshianMeshSetupProvider = StateNotifierProvider<KoshianMeshSetupNotifier, KoshianMeshSetupState>((ref) {
+  var inst = KoshianMeshSetupNotifier(ref);
   return inst;
 });
