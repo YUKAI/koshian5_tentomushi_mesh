@@ -258,8 +258,10 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
 
   Future<bool> _setupTry(BleScannedDevice device) async {
     if (state != KoshianMeshSetupState.ready) {
+      logger.w("Device setup already ongoing");
       return false;
     }
+    logger.i("Attempt device setup");
     // connect
     state = KoshianMeshSetupState.connecting;
     final connectionCompleter = Completer<bool>();
@@ -302,15 +304,21 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
       });
       await FlutterReactiveBle().writeCharacteristicWithResponse(settingsCmdC12c, value: [0x01,0x01,0x01]);
       // enable mesh
-      FlutterReactiveBle().subscribeToCharacteristic(bluetoothSettingsC12c).listen((data) {
-        logger.i("Bluetooth settings update: $data");
-      });
-      await FlutterReactiveBle().writeCharacteristicWithResponse(settingsCmdC12c, value: [0x02,0x01]);
+      var bluetoothSettings = await FlutterReactiveBle().readCharacteristic(bluetoothSettingsC12c);
+      if (bluetoothSettings[0] & 0x01 == 0) {  // Mesh disabled
+        FlutterReactiveBle().subscribeToCharacteristic(bluetoothSettingsC12c).listen((data) {
+          logger.i("Bluetooth settings update: $data");
+        });
+        await FlutterReactiveBle().writeCharacteristicWithResponse(settingsCmdC12c, value: [0x02,0x01]);
+      }
+      else {
+        logger.i("Bluetooth Mesh already enabled");
+      }
       // TODO: setup I/Os
       await connectionListener.cancel();
       state = KoshianMeshSetupState.unprovisionedScan;
       unprovisionedScanListener = nordicNrfMesh.scanForUnprovisionedNodes().listen((scannedDevice) {
-        if (device.id == scannedDevice.id) {
+        if (device.id == scannedDevice.id  &&  scannedDevice.serviceData.containsKey(meshProvisioningUuid)) {
           unprovisionedScanCompleter.complete(scannedDevice);
         }
       });
@@ -358,16 +366,11 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
       logger.i("Provisioned node: $provisionedNode");
       state = KoshianMeshSetupState.ready;
     }
-    catch (e) {
-      logger.i("Failed: $e");
+    catch (e, s) {
+      logger.i("Failed: $e\r\n$s");
       await unprovisionedScanListener?.cancel();
-      if (!unprovisionedScanCompleter.isCompleted) {
-        unprovisionedScanCompleter.complete(null);
-      }
       await connectionListener?.cancel();
-      if (!connectionCompleter.isCompleted) {
-        connectionCompleter.complete(false);
-      }
+      nordicNrfMesh.cancelProvisioning(nordicNrfMesh.meshManagerApi, BleMeshManager());
       state = KoshianMeshSetupState.ready;
       return false;
     }
