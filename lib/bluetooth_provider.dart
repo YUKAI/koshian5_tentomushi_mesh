@@ -79,6 +79,11 @@ class MeshNetworkNotifier extends StateNotifier<IMeshNetwork?> {
     });
   }
 
+  Future<void> reload() async {
+    state = null;
+    state = await nordicNrfMesh.meshManagerApi.loadMeshNetwork();
+  }
+
   Future<void> reset() async {
     state = null;
     await nordicNrfMesh.meshManagerApi.resetMeshNetwork();
@@ -238,6 +243,7 @@ enum KoshianMeshSetupState {
   koshianSettings,
   unprovisionedScan,
   provisioning,
+  meshSettings,
 }
 
 class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
@@ -268,6 +274,8 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
     StreamSubscription<ConnectionStateUpdate>? connectionListener;
     final unprovisionedScanCompleter = Completer<DiscoveredDevice?>();
     StreamSubscription<DiscoveredDevice>? unprovisionedScanListener;
+    final proxyScanCompleter = Completer<DiscoveredDevice?>();
+    StreamSubscription<DiscoveredDevice>? proxyScanListener;
     try {
       connectionListener = FlutterReactiveBle().connectToAdvertisingDevice(
         id: device.id,
@@ -298,6 +306,11 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
           characteristicId: Uuid.parse(konashiBluetoothSettingsGetC12cUuid),
           deviceId: device.id
       );
+      final configCmdC12c = QualifiedCharacteristic(
+          serviceId: Uuid.parse(konashiConfigServiceUuid),
+          characteristicId: Uuid.parse(konashiConfigCommandC12cUuid),
+          deviceId: device.id
+      );
       // enable NVM
       FlutterReactiveBle().subscribeToCharacteristic(systemSettingsC12c).listen((data) {
         logger.i("System settings update: $data");
@@ -315,6 +328,7 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
         logger.i("Bluetooth Mesh already enabled");
       }
       // TODO: setup I/Os
+      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x01,0x11,0x10]);
       await connectionListener.cancel();
       state = KoshianMeshSetupState.unprovisionedScan;
       unprovisionedScanListener = nordicNrfMesh.scanForUnprovisionedNodes().listen((scannedDevice) {
@@ -364,6 +378,8 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
           events: provisioningEvent,
       ).timeout(const Duration(minutes: 1));
       logger.i("Provisioned node: $provisionedNode");
+      await ref.read(meshNetworkProvider.notifier).reload();
+      state = KoshianMeshSetupState.meshSettings;
       state = KoshianMeshSetupState.ready;
     }
     catch (e, s) {
