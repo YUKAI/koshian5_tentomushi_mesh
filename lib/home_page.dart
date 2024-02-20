@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:koshian5_tentomushi_mesh/bluetooth_provider.dart';
 import 'package:koshian5_tentomushi_mesh/debug.dart';
@@ -18,6 +16,16 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   List<Map<String, dynamic>> meshNodes = [];
+  Map<int, List<double>> nodeSliderStates = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Future(() async {
+    //   var res = await ref.read(koshianMeshProxyProvider.notifier).connect();
+    //   logger.i("Connected to proxy: $res");
+    // });
+  }
 
   Future<void> getNodesList(IMeshNetwork? meshNetwork) async {
     List<Map<String, dynamic>> newMeshNodes = [];
@@ -30,6 +38,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       info["address"] = await node.unicastAddress;
       info["elements"] = await node.elements;
       newMeshNodes.add(info);
+      if (!nodeSliderStates.containsKey(info["address"])) {
+        nodeSliderStates[info["address"]] = [0,0,0,0];
+      }
     }
     meshNodes = newMeshNodes;
     setState(() {});
@@ -44,12 +55,27 @@ class _HomePageState extends ConsumerState<HomePage> {
         await getNodesList(next);
       }
     });
-    bool onoff = false;
+    var proxyConnectionState = ref.watch(koshianMeshProxyProvider);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text("テントウムシ"),
         actions: [
+          OutlinedButton(
+            onPressed: () {
+              if (proxyConnectionState == KoshianMeshProxyState.connected) {
+                ref.read(koshianMeshProxyProvider.notifier).disconnect();
+              }
+              else {
+                ref.read(koshianMeshProxyProvider.notifier).connect();
+              }
+            },
+            child: Text(
+                proxyConnectionState==KoshianMeshProxyState.connected?"接続済み":
+                proxyConnectionState==KoshianMeshProxyState.connecting?"接続中":
+                "接続"
+            ),
+          ),
           IconButton(
             onPressed: () {
               ref.read(routerProvider).push('/addDevice');
@@ -99,132 +125,73 @@ class _HomePageState extends ConsumerState<HomePage> {
                       const SizedBox(width: 6),
                       Column(
                         children: [
-                          OutlinedButton(
-                            onPressed: () {
-                              StreamSubscription<List<int>>? onMeshPduCreatedSubscription;
-                              StreamSubscription<BleMeshManagerCallbacksDataSent>? onDataSentSubscription;
-                              StreamSubscription<BleMeshManagerCallbacksDataReceived>? onDataReceivedSubscription;
-                              Future.delayed(const Duration(), () async {
-                                final proxyScanCompleter = Completer<DiscoveredDevice?>();
-                                StreamSubscription<DiscoveredDevice>? proxyScanListener;
-                                //
-                                proxyScanListener = nordicNrfMesh.scanForProxy().listen((scannedDevice) {
-                                  if (scannedDevice.serviceData.containsKey(meshProxyUuid)) {
-                                    proxyScanCompleter.complete(scannedDevice);
-                                  }
-                                });
-                                var proxyDevice = await proxyScanCompleter.future.timeout(const Duration(seconds: 10), onTimeout: () => null);
-                                if (proxyDevice == null) {
-                                  throw "Proxy scan error";
-                                }
-                                logger.d("Found proxy device: $proxyDevice");
-                                await proxyScanListener.cancel();
-                                final setupCallbacks = BleMeshManagerSetupCallbacks(nordicNrfMesh.meshManagerApi);
-                                BleMeshManager().callbacks = setupCallbacks;
-                                onMeshPduCreatedSubscription = nordicNrfMesh.meshManagerApi.onMeshPduCreated.listen((event) async {
-                                  logger.d("Mesh PDU created: send PDU");
-                                  await BleMeshManager().sendPdu(event);
-                                });
-                                onDataSentSubscription = Platform.isAndroid ? BleMeshManager().callbacks!.onDataSent.listen((event) async {
-                                  logger.d("Mesh data sent: handle write callbacks");
-                                  await nordicNrfMesh.meshManagerApi.handleWriteCallbacks(event.mtu, event.pdu);
-                                }) : null;
-                                onDataReceivedSubscription = BleMeshManager().callbacks!.onDataReceived.listen((event) async {
-                                  logger.d("Mesh data sent: handle notifications");
-                                  await nordicNrfMesh.meshManagerApi.handleNotifications(event.mtu, event.pdu);
-                                });
-                                await BleMeshManager().connect(proxyDevice);
-                                logger.d("Connected to proxy device");
-                                await Future.delayed(const Duration(seconds: 1));
-                                onoff = !onoff;
-                                var res2 = await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
-                                    e["address"]+2,
-                                    onoff,
-                                    await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(e["address"])
-                                );
-                                logger.i("Control result: $res2");
-                                await onMeshPduCreatedSubscription?.cancel();
-                                await onDataSentSubscription?.cancel();
-                                await onDataReceivedSubscription?.cancel();
-                                await BleMeshManager().disconnect();
-                              }).timeout(const Duration(seconds: 20), onTimeout: () async {
-                                logger.i("Control timeout, clean up");
-                                await onMeshPduCreatedSubscription?.cancel();
-                                await onDataSentSubscription?.cancel();
-                                await onDataReceivedSubscription?.cancel();
-                                await BleMeshManager().disconnect();
-                              }).onError((error, stackTrace) async {
-                                logger.i("Control error ($error), clean up\r\n$stackTrace");
-                                await onMeshPduCreatedSubscription?.cancel();
-                                await onDataSentSubscription?.cancel();
-                                await onDataReceivedSubscription?.cancel();
-                                await BleMeshManager().disconnect();
+                          Slider(
+                            value: nodeSliderStates[e["address"]]![0],
+                            onChanged: (val) {
+                              setState(() {
+                                nodeSliderStates[e["address"]]![0] = val;
                               });
                             },
-                            child: const Text("Control"),
+                            onChangeEnd: (val) async {
+                              if (e["address"] == 1) {
+                                return;
+                              }
+                              await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
+                                e["address"]+1,
+                                (val*32767).toInt(),
+                              );
+                            },
                           ),
-                          OutlinedButton(
-                              onPressed: () {
-                                StreamSubscription<List<int>>? onMeshPduCreatedSubscription;
-                                StreamSubscription<BleMeshManagerCallbacksDataSent>? onDataSentSubscription;
-                                StreamSubscription<BleMeshManagerCallbacksDataReceived>? onDataReceivedSubscription;
-                                Future.delayed(const Duration(), () async {
-                                  final proxyScanCompleter = Completer<DiscoveredDevice?>();
-                                  StreamSubscription<DiscoveredDevice>? proxyScanListener;
-                                  //
-                                  proxyScanListener = nordicNrfMesh.scanForProxy().listen((scannedDevice) {
-                                    if (scannedDevice.serviceData.containsKey(meshProxyUuid)) {
-                                      proxyScanCompleter.complete(scannedDevice);
-                                    }
-                                  });
-                                  var proxyDevice = await proxyScanCompleter.future.timeout(const Duration(seconds: 10), onTimeout: () => null);
-                                  if (proxyDevice == null) {
-                                    throw "Proxy scan error";
-                                  }
-                                  logger.d("Found proxy device: $proxyDevice");
-                                  await proxyScanListener.cancel();
-                                  final setupCallbacks = BleMeshManagerSetupCallbacks(nordicNrfMesh.meshManagerApi);
-                                  BleMeshManager().callbacks = setupCallbacks;
-                                  onMeshPduCreatedSubscription = nordicNrfMesh.meshManagerApi.onMeshPduCreated.listen((event) async {
-                                    logger.d("Mesh PDU created: send PDU");
-                                    await BleMeshManager().sendPdu(event);
-                                  });
-                                  onDataSentSubscription = Platform.isAndroid ? BleMeshManager().callbacks!.onDataSent.listen((event) async {
-                                    logger.d("Mesh data sent: handle write callbacks");
-                                    await nordicNrfMesh.meshManagerApi.handleWriteCallbacks(event.mtu, event.pdu);
-                                  }) : null;
-                                  onDataReceivedSubscription = BleMeshManager().callbacks!.onDataReceived.listen((event) async {
-                                    logger.d("Mesh data sent: handle notifications");
-                                    await nordicNrfMesh.meshManagerApi.handleNotifications(event.mtu, event.pdu);
-                                  });
-                                  await BleMeshManager().connect(proxyDevice);
-                                  logger.d("Connected to proxy device");
-                                  await Future.delayed(const Duration(seconds: 1));
-                                  var res = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
-                                      e["address"],
-                                      e["address"]+2,
-                                      0x1000
-                                  );
-                                  logger.i("Configure result: $res");
-                                  await onMeshPduCreatedSubscription?.cancel();
-                                  await onDataSentSubscription?.cancel();
-                                  await onDataReceivedSubscription?.cancel();
-                                  await BleMeshManager().disconnect();
-                                }).timeout(const Duration(seconds: 20), onTimeout: () async {
-                                  logger.i("Configure timeout, clean up");
-                                  await onMeshPduCreatedSubscription?.cancel();
-                                  await onDataSentSubscription?.cancel();
-                                  await onDataReceivedSubscription?.cancel();
-                                  await BleMeshManager().disconnect();
-                                }).onError((error, stackTrace) async {
-                                  logger.i("Configure error ($error), clean up\r\n$stackTrace");
-                                  await onMeshPduCreatedSubscription?.cancel();
-                                  await onDataSentSubscription?.cancel();
-                                  await onDataReceivedSubscription?.cancel();
-                                  await BleMeshManager().disconnect();
-                                });
-                              },
-                              child: const Text("Configure"),
+                          Slider(
+                            value: nodeSliderStates[e["address"]]![1],
+                            onChanged: (val) {
+                              setState(() {
+                                nodeSliderStates[e["address"]]![1] = val;
+                              });
+                            },
+                            onChangeEnd: (val) async {
+                              if (e["address"] == 1) {
+                                return;
+                              }
+                              await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
+                                e["address"]+2,
+                                (val*32767).toInt(),
+                              );
+                            },
+                          ),
+                          Slider(
+                            value: nodeSliderStates[e["address"]]![2],
+                            onChanged: (val) {
+                              setState(() {
+                                nodeSliderStates[e["address"]]![2] = val;
+                              });
+                            },
+                            onChangeEnd: (val) async {
+                              if (e["address"] == 1) {
+                                return;
+                              }
+                              await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
+                                e["address"]+7,
+                                (val*32767).toInt(),
+                              );
+                            },
+                          ),
+                          Slider(
+                            value: nodeSliderStates[e["address"]]![3],
+                            onChanged: (val) {
+                              setState(() {
+                                nodeSliderStates[e["address"]]![3] = val;
+                              });
+                            },
+                            onChangeEnd: (val) async {
+                              if (e["address"] == 1) {
+                                return;
+                              }
+                              await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
+                                e["address"]+8,
+                                (val*32767).toInt(),
+                              );
+                            },
                           ),
                           OutlinedButton(
                             onPressed: () {

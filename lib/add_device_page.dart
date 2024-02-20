@@ -3,6 +3,7 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:koshian5_tentomushi_mesh/bluetooth_provider.dart';
 import 'package:koshian5_tentomushi_mesh/consts.dart';
+import 'package:koshian5_tentomushi_mesh/debug.dart';
 
 class AddDevicePage extends ConsumerStatefulWidget {
   const AddDevicePage({super.key});
@@ -18,8 +19,11 @@ class _AddDevicePageState extends ConsumerState<AddDevicePage> {
   void initState() {
     super.initState();
     _bleScannedDeviceNotifier = ref.read(bleScannerProvider.notifier);
-    Future.delayed(Duration.zero, () async {
-      _bleScannedDeviceNotifier.scanStart();
+    Future(() async {
+      await ref.read(koshianMeshProxyProvider.notifier).disconnect();
+      logger.d("Disconnected from proxy");
+      await _bleScannedDeviceNotifier.scanStart();
+      logger.d("Scan started");
     });
   }
 

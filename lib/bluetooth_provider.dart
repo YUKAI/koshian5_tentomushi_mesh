@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
@@ -24,7 +25,9 @@ class BluetoothAdapterStateNotifier
     logger.d("BLE state event: $event");
     state = event;
     if (event == BleStatus.ready) {
-      _stateCompleter.complete(true);
+      if (!_stateCompleter.isCompleted) {
+        _stateCompleter.complete(true);
+      }
     }
   }
 
@@ -274,8 +277,6 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
     StreamSubscription<ConnectionStateUpdate>? connectionListener;
     final unprovisionedScanCompleter = Completer<DiscoveredDevice?>();
     StreamSubscription<DiscoveredDevice>? unprovisionedScanListener;
-    final proxyScanCompleter = Completer<DiscoveredDevice?>();
-    StreamSubscription<DiscoveredDevice>? proxyScanListener;
     try {
       connectionListener = FlutterReactiveBle().connectToAdvertisingDevice(
         id: device.id,
@@ -327,8 +328,9 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
       else {
         logger.i("Bluetooth Mesh already enabled");
       }
-      // TODO: setup I/Os
-      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x01,0x11,0x10]);
+      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x03, 0xff,0x00,0x00,0x4b]);
+      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x03, 0x01, 0x11]);
+      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x02, 0x21,0x01,0x00, 0x31,0x01,0x00]);
       await connectionListener.cancel();
       state = KoshianMeshSetupState.unprovisionedScan;
       unprovisionedScanListener = nordicNrfMesh.scanForUnprovisionedNodes().listen((scannedDevice) {
@@ -380,7 +382,44 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
       logger.i("Provisioned node: $provisionedNode");
       await ref.read(meshNetworkProvider.notifier).reload();
       state = KoshianMeshSetupState.meshSettings;
+      await BleMeshManager().disconnect();
+      var proxyConnectResult = await ref.read(koshianMeshProxyProvider.notifier).connect(
+        specificDevice: unprovisionedDevice,
+        scanTimeout: const Duration(seconds: 20),
+        forceReconnect: true,
+      );
+      if (proxyConnectResult == false) {
+        throw "Could not connect to proxy (${ref.read(koshianMeshProxyProvider.notifier).latestError})";
+      }
+      var nodeUnicastAddress = await provisionedNode.unicastAddress;
+      ConfigModelAppStatusData configModelAppBindResult;
+      configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
+          nodeUnicastAddress,
+          nodeUnicastAddress+1,
+          0x1002
+      );
+      logger.d("App bind PIO0 level result: $configModelAppBindResult");
+      configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
+          nodeUnicastAddress,
+          nodeUnicastAddress+2,
+          0x1002
+      );
+      logger.d("App bind PIO1 level result: $configModelAppBindResult");
+      configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
+          nodeUnicastAddress,
+          nodeUnicastAddress+7,
+          0x1002
+      );
+      logger.d("App bind PIO6 level result: $configModelAppBindResult");
+      configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
+          nodeUnicastAddress,
+          nodeUnicastAddress+8,
+          0x1002
+      );
+      logger.d("App bind PIO7 level result: $configModelAppBindResult");
+      await ref.read(koshianMeshProxyProvider.notifier).disconnect();
       state = KoshianMeshSetupState.ready;
+      logger.i("Device setup done");
     }
     catch (e, s) {
       logger.i("Failed: $e\r\n$s");
@@ -396,5 +435,152 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
 
 final koshianMeshSetupProvider = StateNotifierProvider<KoshianMeshSetupNotifier, KoshianMeshSetupState>((ref) {
   var inst = KoshianMeshSetupNotifier(ref);
+  return inst;
+});
+
+
+// ------------------------------------------------------------------------------------
+// - Koshian device mesh proxy provider.
+
+enum KoshianMeshProxyState {
+  disconnected,
+  connecting,
+  connected,
+  error,
+}
+
+class _BleMeshManagerProxyCallbacks extends BleMeshManagerCallbacks {
+  final MeshManagerApi meshManagerApi;
+
+  /// {@macro prov_ble_manager}
+  _BleMeshManagerProxyCallbacks(this.meshManagerApi);
+
+  @override
+  Future<void> sendMtuToMeshManagerApi(int mtu) => meshManagerApi.setMtu(mtu);
+}
+
+class KoshianMeshProxyNotifier extends StateNotifier<KoshianMeshProxyState> {
+  final Ref ref;
+
+  StreamSubscription<DiscoveredDevice>? _proxyScanListener;
+  Completer<DiscoveredDevice?>? _proxyScanCompleter;
+  StreamSubscription<List<int>>? _onMeshPduCreatedSubscription;
+  StreamSubscription<BleMeshManagerCallbacksDataSent>? _onDataSentSubscription;
+  StreamSubscription<BleMeshManagerCallbacksDataReceived>? _onDataReceivedSubscription;
+  StreamSubscription<ConnectionStateUpdate>? _onDeviceDisconnectedSubscription;
+
+  KoshianMeshProxyNotifier(this.ref) : super(KoshianMeshProxyState.disconnected);
+
+  String _latestError = "";
+  String get latestError => state == KoshianMeshProxyState.error ? _latestError : "";
+
+  void _clearSubscriptions() {
+    _onMeshPduCreatedSubscription?.cancel();
+    _onMeshPduCreatedSubscription = null;
+    _onDataSentSubscription?.cancel();
+    _onDataSentSubscription = null;
+    _onDataReceivedSubscription?.cancel();
+    _onDataReceivedSubscription = null;
+    _onDeviceDisconnectedSubscription?.cancel();
+    _onDeviceDisconnectedSubscription = null;
+  }
+
+  Future<bool> connect({
+    Duration? scanTimeout,
+    DiscoveredDevice? specificDevice,
+    bool forceReconnect = false,
+  }) async {
+    try {
+      if (!forceReconnect && (state == KoshianMeshProxyState.connecting || state == KoshianMeshProxyState.connected)) {
+        logger.d("Already connecting or connected to proxy, no forced reconnect");
+        return true;
+      }
+      state = KoshianMeshProxyState.connecting;
+      if (forceReconnect && (state == KoshianMeshProxyState.connecting || state == KoshianMeshProxyState.connected)) {
+        logger.d("Forced reconnect, disconnect or cancel first");
+        await disconnect();
+      }
+      logger.d("Attempt proxy connect (specific device: $specificDevice, timeout: $scanTimeout)");
+      _proxyScanCompleter = Completer<DiscoveredDevice?>();
+      _proxyScanListener = nordicNrfMesh.scanForProxy().listen((scannedDevice) {
+        logger.i("Proxy scanned device: $scannedDevice");
+        if (scannedDevice.serviceData.containsKey(meshProxyUuid)) {
+          if (specificDevice != null  &&  specificDevice.id != scannedDevice.id) {
+            return;
+          }
+          logger.i("Proxy found device: $scannedDevice");
+          _proxyScanCompleter?.complete(scannedDevice);
+        }
+      });
+      var proxyDevice = scanTimeout == null ? await _proxyScanCompleter?.future :
+          await _proxyScanCompleter?.future.timeout(scanTimeout, onTimeout: () => null);
+      _proxyScanCompleter = null;
+      await _proxyScanListener?.cancel();
+      if (proxyDevice == null) {
+        if (_proxyScanListener == null) {
+          _latestError = "Proxy scan cancelled";
+          state = KoshianMeshProxyState.disconnected;
+          logger.i(_latestError);
+        }
+        else {
+          if (specificDevice != null) {
+            _latestError = "Specific proxy device (${specificDevice.id}) could not be found";
+          }
+          else {
+            _latestError = "A proxy device could not be found";
+          }
+          state = KoshianMeshProxyState.error;
+          logger.w(_latestError);
+        }
+        return false;
+      }
+      _proxyScanListener = null;
+      BleMeshManager().callbacks = _BleMeshManagerProxyCallbacks(nordicNrfMesh.meshManagerApi);
+      _onMeshPduCreatedSubscription = nordicNrfMesh.meshManagerApi.onMeshPduCreated.listen((event) async {
+        await BleMeshManager().sendPdu(event);
+      });
+      _onDataSentSubscription = Platform.isAndroid ? BleMeshManager().callbacks!.onDataSent.listen((event) async {
+        await nordicNrfMesh.meshManagerApi.handleWriteCallbacks(event.mtu, event.pdu);
+      }) : null;
+      _onDataReceivedSubscription = BleMeshManager().callbacks!.onDataReceived.listen((event) async {
+        await nordicNrfMesh.meshManagerApi.handleNotifications(event.mtu, event.pdu);
+      });
+      _onDeviceDisconnectedSubscription = BleMeshManager().callbacks!.onDeviceDisconnected.listen((event) async {
+        _clearSubscriptions();
+        await FlutterReactiveBle().deinitialize();
+        state = KoshianMeshProxyState.disconnected;
+        logger.i("Disconnected from proxy");
+      });
+      await BleMeshManager().connect(proxyDevice);
+      logger.i("Connected to proxy ${BleMeshManager().device?.id}");
+      state = KoshianMeshProxyState.connected;
+      return true;
+    }
+    catch (e, s) {
+      logger.e("Proxy connection error: $e\r\n$s");
+      _latestError = e.toString();
+      _proxyScanCompleter = null;
+      _clearSubscriptions();
+      await BleMeshManager().disconnect();
+      state = KoshianMeshProxyState.error;
+    }
+    return false;
+  }
+
+  Future<void> disconnect() async {
+    await _proxyScanListener?.cancel();
+    _proxyScanListener = null;
+    if (_proxyScanCompleter != null && !_proxyScanCompleter!.isCompleted) {
+      _proxyScanCompleter?.complete(null);
+    }
+    _proxyScanCompleter = null;
+    await BleMeshManager().disconnect();
+    state = KoshianMeshProxyState.disconnected;
+    logger.i("Proxy disconnect done");
+  }
+}
+
+final koshianMeshProxyProvider = StateNotifierProvider<KoshianMeshProxyNotifier, KoshianMeshProxyState>((ref) {
+  var inst = KoshianMeshProxyNotifier(ref);
   return inst;
 });
