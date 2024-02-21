@@ -380,6 +380,7 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
           events: provisioningEvent,
       ).timeout(const Duration(minutes: 1));
       logger.i("Provisioned node: $provisionedNode");
+      provisionedNode.nodeName = device.name;
       await ref.read(meshNetworkProvider.notifier).reload();
       state = KoshianMeshSetupState.meshSettings;
       await BleMeshManager().disconnect();
@@ -582,5 +583,40 @@ class KoshianMeshProxyNotifier extends StateNotifier<KoshianMeshProxyState> {
 
 final koshianMeshProxyProvider = StateNotifierProvider<KoshianMeshProxyNotifier, KoshianMeshProxyState>((ref) {
   var inst = KoshianMeshProxyNotifier(ref);
+  return inst;
+});
+
+
+// ------------------------------------------------------------------------------------
+// - Koshian device list provider.
+
+class KoshianNode {
+  ProvisionedMeshNode node;
+  String name;
+  int unicastAddress;
+  KoshianNode(this.node, this.name, this.unicastAddress);
+}
+
+class KoshianNodeListNotifier extends StateNotifier<List<KoshianNode>> {
+  final Ref ref;
+
+  KoshianNodeListNotifier(this.ref) : super([]) {
+    ref.listen(meshNetworkProvider, (previous, next) async {
+      List<KoshianNode> newMeshNodes = [];
+      var nodes = await next?.nodes ?? [];
+      for (var node in nodes) {
+        var unicastAddress = await node.unicastAddress;
+        if (unicastAddress != 1) { // not the provisioner node
+          var name = await node.name;
+          newMeshNodes.add(KoshianNode(node, name, unicastAddress));
+        }
+      }
+      state = newMeshNodes;
+    });
+  }
+}
+
+final koshianNodeListProvider = StateNotifierProvider<KoshianNodeListNotifier, List<KoshianNode>>((ref) {
+  var inst = KoshianNodeListNotifier(ref);
   return inst;
 });
