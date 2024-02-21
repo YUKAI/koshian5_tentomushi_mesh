@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'bluetooth_provider.dart';
 
 
-class KoshianNodeWidget extends StatefulWidget
+class KoshianNodeWidget extends ConsumerStatefulWidget
 {
   final KoshianNode node;
   const KoshianNodeWidget({
@@ -12,10 +13,10 @@ class KoshianNodeWidget extends StatefulWidget
   });
 
   @override
-  State<StatefulWidget> createState() => _KoshianNodeWidgetState();
+  ConsumerState<KoshianNodeWidget> createState() => _KoshianNodeWidgetState();
 }
 
-class _KoshianNodeWidgetState<T> extends State<KoshianNodeWidget> {
+class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
   double motorControl = 0.0;
   bool redControl = false;
   bool greenControl = false;
@@ -27,13 +28,38 @@ class _KoshianNodeWidgetState<T> extends State<KoshianNodeWidget> {
       children: [
         Row(
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.node.name),
-                Text(widget.node.node.uuid),
-              ],
-            ),
+            Padding(padding: const EdgeInsets.all(8.0), child: InkWell(
+              onDoubleTap: () async {
+                showDialog(context: context, builder: (ctx) {
+                  return AlertDialog(
+                    title: const Text("このノードを削除しますか？"),
+                    actions: [
+                      TextButton(
+                        onPressed: () async {
+                          Navigator.of(ctx).pop(null);
+                          await ref.read(meshNetworkProvider)?.deleteNode(widget.node.node.uuid);
+                          await ref.read(meshNetworkProvider.notifier).reload();
+                        },
+                        child: const Text("はい")
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(null);
+                        },
+                        child: const Text("キャンセル")
+                      ),
+                    ],
+                  );
+                });
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.node.name),
+                  Text(widget.node.node.uuid),
+                ],
+              ),
+            )),
             Column(
               children: [
                 Row(
