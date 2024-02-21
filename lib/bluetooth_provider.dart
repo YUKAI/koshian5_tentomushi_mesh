@@ -271,7 +271,6 @@ class BleScannedDeviceNotifier extends StateNotifier<List<BleScannedDevice>> {
   void scanStop() async {
     await _scanListener?.cancel();
     _scanListener = null;
-    state = [];
   }
 }
 
