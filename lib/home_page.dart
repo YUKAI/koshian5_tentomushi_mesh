@@ -145,8 +145,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                             },
                           ),
                           OutlinedButton(
-                            onPressed: () {
-                              meshNetwork?.deleteNode(n.node.uuid);
+                            onPressed: () async {
+                              await meshNetwork?.deleteNode(n.node.uuid);
+                              await ref.read(meshNetworkProvider.notifier).reload();
                             },
                             child: const Icon(Icons.delete),
                           ),
@@ -162,15 +163,4 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
   }
-}
-
-
-class BleMeshManagerSetupCallbacks extends BleMeshManagerCallbacks {
-  final MeshManagerApi meshManagerApi;
-
-  /// {@macro prov_ble_manager}
-  BleMeshManagerSetupCallbacks(this.meshManagerApi);
-
-  @override
-  Future<void> sendMtuToMeshManagerApi(int mtu) => meshManagerApi.setMtu(mtu);
 }
