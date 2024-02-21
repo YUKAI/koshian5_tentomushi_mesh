@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:koshian5_tentomushi_mesh/bluetooth_provider.dart';
 import 'package:koshian5_tentomushi_mesh/debug.dart';
+import 'package:koshian5_tentomushi_mesh/koshian_node_widget.dart';
 import 'package:koshian5_tentomushi_mesh/router.dart';
 import 'package:nordic_nrf_mesh/nordic_nrf_mesh.dart';
 
@@ -75,66 +76,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             ...meshNodes.map((n) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  KoshianNodeWidget(node: n),
                   Row(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Node: ${n.name}"),
-                          Text("UUID: ${n.node.uuid}"),
-                          Text("Addr: ${n.unicastAddress}"),
-                        ],
-                      ),
                       const SizedBox(width: 6),
                       Column(
                         children: [
-                          Slider(
-                            value: nodeControlStates[n.unicastAddress]![0],
-                            onChanged: (val) {
-                              setState(() {
-                                nodeControlStates[n.unicastAddress]![0] = val;
-                              });
-                            },
-                            onChangeEnd: (val) async {
-                              await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
-                                n.unicastAddress+1,
-                                (val*32767).toInt(),
-                              );
-                            },
-                          ),
-                          OutlinedButton(
-                            onPressed: () async {
-                              nodeControlStates[n.unicastAddress]![1] = !nodeControlStates[n.unicastAddress]![1];
-                              await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
-                                n.unicastAddress+8,
-                                nodeControlStates[n.unicastAddress]![1],
-                                await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(n.unicastAddress)
-                              );
-                            },
-                            child: const Text("R")
-                          ),
-                          OutlinedButton(
-                              onPressed: () async {
-                                nodeControlStates[n.unicastAddress]![2] = !nodeControlStates[n.unicastAddress]![2];
-                                await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
-                                    n.unicastAddress+2,
-                                    nodeControlStates[n.unicastAddress]![2],
-                                    await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(n.unicastAddress)
-                                );
-                              },
-                              child: const Text("G")
-                          ),
-                          OutlinedButton(
-                              onPressed: () async {
-                                nodeControlStates[n.unicastAddress]![3] = !nodeControlStates[n.unicastAddress]![3];
-                                await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
-                                    n.unicastAddress+7,
-                                    nodeControlStates[n.unicastAddress]![3],
-                                    await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(n.unicastAddress)
-                                );
-                              },
-                              child: const Text("B")
-                          ),
                           OutlinedButton(
                             onPressed: () async {
                               await meshNetwork?.deleteNode(n.node.uuid);
