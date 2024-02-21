@@ -40,6 +40,7 @@ class _AddDevicePageState extends ConsumerState<AddDevicePage> {
     super.dispose();
     Future.delayed(Duration.zero, () async {
       _bleScannedDeviceNotifier.scanStop();
+      _bleScannedDeviceNotifier.listClear();
     });
   }
 

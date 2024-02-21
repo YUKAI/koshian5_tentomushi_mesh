@@ -272,6 +272,10 @@ class BleScannedDeviceNotifier extends StateNotifier<List<BleScannedDevice>> {
     await _scanListener?.cancel();
     _scanListener = null;
   }
+
+  void listClear() {
+    state = [];
+  }
 }
 
 final bleScannerProvider = StateNotifierProvider<BleScannedDeviceNotifier, List<BleScannedDevice>>((ref) {

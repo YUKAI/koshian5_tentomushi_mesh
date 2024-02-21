@@ -18,41 +18,57 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool redControl = false;
   bool greenControl = false;
   bool blueControl = false;
+  KoshianMeshProxyState proxyConnectionState = KoshianMeshProxyState.disconnected;
+  bool allowProxyAutoConnect = false;
 
   @override
   Widget build(BuildContext context) {
     NetworkKey? meshNetworkKey = ref.watch(meshNetworkKeyProvider);
     IMeshNetwork? meshNetwork = ref.watch(meshNetworkProvider);
-    var proxyConnectionState = ref.watch(koshianMeshProxyProvider);
+    ref.listen(koshianMeshProxyProvider, (_, proxyState) {
+      setState(() {
+        proxyConnectionState = proxyState;
+      });
+      if (proxyState == KoshianMeshProxyState.disconnected || proxyState == KoshianMeshProxyState.error) {
+        if (allowProxyAutoConnect) {
+          ref.read(koshianMeshProxyProvider.notifier).connect();
+        }
+      }
+    });
     var meshNodes = ref.watch(koshianNodeListProvider);
     var meshGroups = ref.watch(meshGroupsProvider);
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 80,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text("テントウムシ"),
         actions: [
-          OutlinedButton(
+          FilledButton(
             onPressed: () {
               if (proxyConnectionState == KoshianMeshProxyState.connected || proxyConnectionState == KoshianMeshProxyState.connecting) {
+                allowProxyAutoConnect = false;
                 ref.read(koshianMeshProxyProvider.notifier).disconnect();
               }
               else {
+                allowProxyAutoConnect = true;
                 ref.read(koshianMeshProxyProvider.notifier).connect();
               }
             },
             child: Text(
-                proxyConnectionState==KoshianMeshProxyState.connected?"接続済み":
-                proxyConnectionState==KoshianMeshProxyState.connecting?"接続中":
-                proxyConnectionState==KoshianMeshProxyState.scanning?"スキャン中":
-                "接続"
+                proxyConnectionState==KoshianMeshProxyState.connected?"Proxy接続済み":
+                proxyConnectionState==KoshianMeshProxyState.connecting?"Proxy接続中":
+                proxyConnectionState==KoshianMeshProxyState.scanning?"Proxyスキャン中":
+                "Proxy未接続"
             ),
           ),
-          IconButton(
+          const SizedBox(width: 8,),
+          OutlinedButton(
             onPressed: () {
               ref.read(routerProvider).push('/addDevice');
             },
-            icon: const Icon(Icons.add)
+            child: const Text("追加")
           ),
+          const SizedBox(width: 8,),
         ],
       ),
       body: SingleChildScrollView(
