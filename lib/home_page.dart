@@ -15,7 +15,9 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   double motorControl = 0.0;
-  bool ledControl = false;
+  bool redControl = false;
+  bool greenControl = false;
+  bool blueControl = false;
 
   @override
   Widget build(BuildContext context) {
@@ -91,18 +93,54 @@ class _HomePageState extends ConsumerState<HomePage> {
                 )),
                 Column(
                     children: [
-                      ColorToggleButton(
-                        color: Colors.black,
-                        value: ledControl,
-                        onPressed: () async {
-                          setState(() {
-                            ledControl = !ledControl;
-                          });
-                          nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
-                              0xffff,
-                              ledControl
-                          );
-                        },
+                      Row(
+                        children: [
+                          ColorToggleButton(
+                            color: Colors.red,
+                            value: redControl,
+                            onPressed: () async {
+                              setState(() {
+                                redControl = !redControl;
+                              });
+                              if (meshGroups.containsKey("pio7")) {
+                                await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
+                                  meshGroups["pio7"]!.address,
+                                    redControl
+                                );
+                              }
+                            },
+                          ),
+                          ColorToggleButton(
+                            color: Colors.green,
+                            value: greenControl,
+                            onPressed: () async {
+                              setState(() {
+                                greenControl = !greenControl;
+                              });
+                              if (meshGroups.containsKey("pio1")) {
+                                await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
+                                  meshGroups["pio1"]!.address,
+                                    greenControl
+                                );
+                              }
+                            },
+                          ),
+                          ColorToggleButton(
+                            color: Colors.blue,
+                            value: blueControl,
+                            onPressed: () async {
+                              setState(() {
+                                blueControl = !blueControl;
+                              });
+                              if (meshGroups.containsKey("pio6")) {
+                                await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
+                                  meshGroups["pio6"]!.address,
+                                  blueControl
+                                );
+                              }
+                            },
+                          ),
+                        ]
                       ),
                       Slider(
                         value: motorControl,
@@ -124,14 +162,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ],
             ),
-            OutlinedButton(
-              onPressed: () async {
-                logger.i("Groups: $meshGroups");
-              },
-              child: const Text("Groups")
-            ),
-            const Divider(height: 1, thickness: 0, indent: 0, endIndent: 0),
-            const Divider(height: 1, thickness: 0, indent: 0, endIndent: 0),
+            const Divider(height: 4, thickness: 3, indent: 0, endIndent: 0),
             ...meshNodes.map((n) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
