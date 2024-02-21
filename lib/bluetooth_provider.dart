@@ -101,6 +101,50 @@ final meshNetworkProvider = StateNotifierProvider<MeshNetworkNotifier, IMeshNetw
 
 
 // ------------------------------------------------------------------------------------
+// - Mesh groups provider.
+
+class MeshGroupsNotifier extends StateNotifier<Map<String, GroupData>> {
+  final Ref ref;
+
+  MeshGroupsNotifier(this.ref) : super({}) {
+    ref.listen(meshNetworkProvider, (_, network) async {
+      if (network == null) {
+        return;
+      }
+      var groups = await network.groups;
+      if (groups.indexWhere((element) => element.name == "pio0") < 0) {
+        var newGroup = await network.addGroupWithName("pio0");
+        logger.i("Added group $newGroup");
+      }
+      if (groups.indexWhere((element) => element.name == "pio1") < 0) {
+        var newGroup = await network.addGroupWithName("pio1");
+        logger.i("Added group $newGroup");
+      }
+      if (groups.indexWhere((element) => element.name == "pio6") < 0) {
+        var newGroup = await network.addGroupWithName("pio6");
+        logger.i("Added group $newGroup");
+      }
+      if (groups.indexWhere((element) => element.name == "pio7") < 0) {
+        var newGroup = await network.addGroupWithName("pio7");
+        logger.i("Added group $newGroup");
+      }
+      Map<String, GroupData> newState = {};
+      groups = await network.groups;
+      for (var group in groups) {
+        newState[group.name] = group;
+      }
+      state = newState;
+    });
+  }
+}
+
+final meshGroupsProvider = StateNotifierProvider<MeshGroupsNotifier, Map<String, GroupData>>((ref) {
+  var inst = MeshGroupsNotifier(ref);
+  return inst;
+});
+
+
+// ------------------------------------------------------------------------------------
 // - Mesh network key provider.
 
 class MeshNetworkKeyNotifier extends StateNotifier<NetworkKey?> {
@@ -394,30 +438,76 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
       }
       var nodeUnicastAddress = await provisionedNode.unicastAddress;
       ConfigModelAppStatusData configModelAppBindResult;
+      ConfigModelSubscriptionStatus configModelSubscriptionResult;
+      var meshGroups = ref.read(meshGroupsProvider);
       configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
           nodeUnicastAddress,
           nodeUnicastAddress+1,
           0x1002
       );
       logger.d("App bind PIO0 level result: $configModelAppBindResult");
+      if (meshGroups.containsKey("pio0")) {
+        configModelSubscriptionResult = await nordicNrfMesh.meshManagerApi.sendConfigModelSubscriptionAdd(
+            nodeUnicastAddress+1,
+            meshGroups["pio0"]!.address,
+            0x1002
+        );
+        logger.d("Group subscribe PIO0 level result: $configModelSubscriptionResult");
+      }
+      else {
+        logger.w("Mesh groups does not contain the pio0 group");
+      }
       configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
           nodeUnicastAddress,
           nodeUnicastAddress+2,
           0x1000
       );
-      logger.d("App bind PIO1 level result: $configModelAppBindResult");
+      logger.d("App bind PIO1 onoff result: $configModelAppBindResult");
+      if (meshGroups.containsKey("pio1")) {
+        configModelSubscriptionResult = await nordicNrfMesh.meshManagerApi.sendConfigModelSubscriptionAdd(
+            nodeUnicastAddress+2,
+            meshGroups["pio1"]!.address,
+            0x1000
+        );
+        logger.d("Group subscribe PIO1 onoff result: $configModelSubscriptionResult");
+      }
+      else {
+        logger.w("Mesh groups does not contain the pio1 group");
+      }
       configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
           nodeUnicastAddress,
           nodeUnicastAddress+7,
           0x1000
       );
-      logger.d("App bind PIO6 level result: $configModelAppBindResult");
+      logger.d("App bind PIO6 onoff result: $configModelAppBindResult");
+      if (meshGroups.containsKey("pio6")) {
+        configModelSubscriptionResult = await nordicNrfMesh.meshManagerApi.sendConfigModelSubscriptionAdd(
+            nodeUnicastAddress+7,
+            meshGroups["pio6"]!.address,
+            0x1000
+        );
+        logger.d("Group subscribe PIO6 onoff result: $configModelSubscriptionResult");
+      }
+      else {
+        logger.w("Mesh groups does not contain the pio6 group");
+      }
       configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
           nodeUnicastAddress,
           nodeUnicastAddress+8,
           0x1000
       );
-      logger.d("App bind PIO7 level result: $configModelAppBindResult");
+      logger.d("App bind PIO7 onoff result: $configModelAppBindResult");
+      if (meshGroups.containsKey("pio7")) {
+        configModelSubscriptionResult = await nordicNrfMesh.meshManagerApi.sendConfigModelSubscriptionAdd(
+            nodeUnicastAddress+8,
+            meshGroups["pio7"]!.address,
+            0x1000
+        );
+        logger.d("Group subscribe PIO7 onoff result: $configModelSubscriptionResult");
+      }
+      else {
+        logger.w("Mesh groups does not contain the pio7 group");
+      }
       await ref.read(koshianMeshProxyProvider.notifier).disconnect();
       state = KoshianMeshSetupState.ready;
       logger.i("Device setup done");

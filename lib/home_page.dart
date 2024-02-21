@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:koshian5_tentomushi_mesh/bluetooth_provider.dart';
+import 'package:koshian5_tentomushi_mesh/debug.dart';
 import 'package:koshian5_tentomushi_mesh/koshian_node_widget.dart';
 import 'package:koshian5_tentomushi_mesh/router.dart';
 import 'package:nordic_nrf_mesh/nordic_nrf_mesh.dart';
@@ -22,6 +23,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     IMeshNetwork? meshNetwork = ref.watch(meshNetworkProvider);
     var proxyConnectionState = ref.watch(koshianMeshProxyProvider);
     var meshNodes = ref.watch(koshianNodeListProvider);
+    var meshGroups = ref.watch(meshGroupsProvider);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -29,7 +31,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         actions: [
           OutlinedButton(
             onPressed: () {
-              if (proxyConnectionState == KoshianMeshProxyState.connected) {
+              if (proxyConnectionState == KoshianMeshProxyState.connected || proxyConnectionState == KoshianMeshProxyState.connecting) {
                 ref.read(koshianMeshProxyProvider.notifier).disconnect();
               }
               else {
@@ -110,15 +112,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                           });
                         },
                         onChangeEnd: (val) async {
-                          await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
-                            0xffff,
-                            (val*32767).toInt(),
-                          );
+                          if (meshGroups.containsKey("pio0")) {
+                            await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
+                              meshGroups["pio0"]!.address,
+                              (val * 32767).toInt(),
+                            );
+                          }
                         },
                       ),
                     ]
                 ),
               ],
+            ),
+            OutlinedButton(
+              onPressed: () async {
+                logger.i("Groups: $meshGroups");
+              },
+              child: const Text("Groups")
             ),
             const Divider(height: 1, thickness: 0, indent: 0, endIndent: 0),
             const Divider(height: 1, thickness: 0, indent: 0, endIndent: 0),
