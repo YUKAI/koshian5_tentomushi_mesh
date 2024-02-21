@@ -16,7 +16,7 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   List<KoshianNode> meshNodes = [];
-  Map<int, List<double>> nodeSliderStates = {};
+  Map<int, List<dynamic>> nodeControlStates = {};
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +25,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     var proxyConnectionState = ref.watch(koshianMeshProxyProvider);
     ref.listen(koshianNodeListProvider, (prev, next) {
       for (var n in next) {
-        if (!nodeSliderStates.containsKey(n.unicastAddress)) {
-          nodeSliderStates[n.unicastAddress] = [0,0,0,0];
+        if (!nodeControlStates.containsKey(n.unicastAddress)) {
+          nodeControlStates[n.unicastAddress] = [0.0,false,false,false];
         }
       }
       meshNodes = next;
@@ -89,10 +89,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                       Column(
                         children: [
                           Slider(
-                            value: nodeSliderStates[n.unicastAddress]![0],
+                            value: nodeControlStates[n.unicastAddress]![0],
                             onChanged: (val) {
                               setState(() {
-                                nodeSliderStates[n.unicastAddress]![0] = val;
+                                nodeControlStates[n.unicastAddress]![0] = val;
                               });
                             },
                             onChangeEnd: (val) async {
@@ -102,47 +102,38 @@ class _HomePageState extends ConsumerState<HomePage> {
                               );
                             },
                           ),
-                          Slider(
-                            value: nodeSliderStates[n.unicastAddress]![1],
-                            onChanged: (val) {
-                              setState(() {
-                                nodeSliderStates[n.unicastAddress]![1] = val;
-                              });
-                            },
-                            onChangeEnd: (val) async {
-                              await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
-                                n.unicastAddress+2,
-                                (val*32767).toInt(),
-                              );
-                            },
-                          ),
-                          Slider(
-                            value: nodeSliderStates[n.unicastAddress]![2],
-                            onChanged: (val) {
-                              setState(() {
-                                nodeSliderStates[n.unicastAddress]![2] = val;
-                              });
-                            },
-                            onChangeEnd: (val) async {
-                              await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
-                                n.unicastAddress+7,
-                                (val*32767).toInt(),
-                              );
-                            },
-                          ),
-                          Slider(
-                            value: nodeSliderStates[n.unicastAddress]![3],
-                            onChanged: (val) {
-                              setState(() {
-                                nodeSliderStates[n.unicastAddress]![3] = val;
-                              });
-                            },
-                            onChangeEnd: (val) async {
-                              await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
+                          OutlinedButton(
+                            onPressed: () async {
+                              nodeControlStates[n.unicastAddress]![1] = !nodeControlStates[n.unicastAddress]![1];
+                              await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
                                 n.unicastAddress+8,
-                                (val*32767).toInt(),
+                                nodeControlStates[n.unicastAddress]![1],
+                                await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(n.unicastAddress)
                               );
                             },
+                            child: const Text("R")
+                          ),
+                          OutlinedButton(
+                              onPressed: () async {
+                                nodeControlStates[n.unicastAddress]![2] = !nodeControlStates[n.unicastAddress]![2];
+                                await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
+                                    n.unicastAddress+2,
+                                    nodeControlStates[n.unicastAddress]![2],
+                                    await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(n.unicastAddress)
+                                );
+                              },
+                              child: const Text("G")
+                          ),
+                          OutlinedButton(
+                              onPressed: () async {
+                                nodeControlStates[n.unicastAddress]![3] = !nodeControlStates[n.unicastAddress]![3];
+                                await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
+                                    n.unicastAddress+7,
+                                    nodeControlStates[n.unicastAddress]![3],
+                                    await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(n.unicastAddress)
+                                );
+                              },
+                              child: const Text("B")
                           ),
                           OutlinedButton(
                             onPressed: () async {

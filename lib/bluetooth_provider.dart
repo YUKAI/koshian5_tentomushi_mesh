@@ -329,8 +329,8 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
         logger.i("Bluetooth Mesh already enabled");
       }
       await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x03, 0xff,0x00,0x00,0x4b]);
-      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x03, 0x01, 0x11]);
-      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x02, 0x21,0x01,0x00, 0x31,0x01,0x00]);
+      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x03, 0x01]);
+      await FlutterReactiveBle().writeCharacteristicWithResponse(configCmdC12c, value: [0x01, 0x11,0x10, 0x61,0x10, 0x71,0x10]);
       await connectionListener.cancel();
       state = KoshianMeshSetupState.unprovisionedScan;
       unprovisionedScanListener = nordicNrfMesh.scanForUnprovisionedNodes().listen((scannedDevice) {
@@ -403,19 +403,19 @@ class KoshianMeshSetupNotifier extends StateNotifier<KoshianMeshSetupState> {
       configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
           nodeUnicastAddress,
           nodeUnicastAddress+2,
-          0x1002
+          0x1000
       );
       logger.d("App bind PIO1 level result: $configModelAppBindResult");
       configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
           nodeUnicastAddress,
           nodeUnicastAddress+7,
-          0x1002
+          0x1000
       );
       logger.d("App bind PIO6 level result: $configModelAppBindResult");
       configModelAppBindResult = await nordicNrfMesh.meshManagerApi.sendConfigModelAppBind(
           nodeUnicastAddress,
           nodeUnicastAddress+8,
-          0x1002
+          0x1000
       );
       logger.d("App bind PIO7 level result: $configModelAppBindResult");
       await ref.read(koshianMeshProxyProvider.notifier).disconnect();
