@@ -17,7 +17,7 @@ class KoshianNodeWidget extends ConsumerStatefulWidget
 }
 
 class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
-  double motorControl = 0.0;
+  double motorControl = -32768;
   bool redControl = false;
   bool greenControl = false;
   bool blueControl = false;
@@ -107,6 +107,8 @@ class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
                 ),
                 Slider(
                   value: motorControl,
+                  min: -32768,
+                  max: 32767,
                   onChanged: (val) {
                     setState(() {
                       motorControl = val;

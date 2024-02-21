@@ -14,7 +14,7 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  double motorControl = 0.0;
+  double motorControl = -32768;
   bool redControl = false;
   bool greenControl = false;
   bool blueControl = false;
@@ -144,6 +144,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                       Slider(
                         value: motorControl,
+                        min: -32768,
+                        max: 32767,
                         onChanged: (val) {
                           setState(() {
                             motorControl = val;
@@ -153,7 +155,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           if (meshGroups.containsKey("pio0")) {
                             await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
                               meshGroups["pio0"]!.address,
-                              (val * 32767).toInt(),
+                              val.toInt(),
                             );
                           }
                         },
