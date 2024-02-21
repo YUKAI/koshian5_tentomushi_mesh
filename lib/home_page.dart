@@ -43,6 +43,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: Text(
                 proxyConnectionState==KoshianMeshProxyState.connected?"接続済み":
                 proxyConnectionState==KoshianMeshProxyState.connecting?"接続中":
+                proxyConnectionState==KoshianMeshProxyState.scanning?"スキャン中":
                 "接続"
             ),
           ),
@@ -57,9 +58,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            const SizedBox(height: 10,),
             Row(
               children: [
-                Padding(padding: const EdgeInsets.all(8.0), child: InkWell(
+                Expanded(child: Padding(padding: const EdgeInsets.all(8.0), child: InkWell(
+                  splashFactory: NoSplash.splashFactory,
                   onDoubleTap: () async {
                     showDialog(context: context, builder: (ctx) {
                       return AlertDialog(
@@ -90,7 +93,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       Text("ネットワークキー: ${meshNetworkKey?.netKeyBytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join("") ?? "無"}"),
                     ],
                   ),
-                )),
+                ))),
                 Column(
                     children: [
                       Row(
@@ -162,6 +165,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                     ]
                 ),
+                const SizedBox(width: 80,),
               ],
             ),
             const Divider(height: 4, thickness: 3, indent: 0, endIndent: 0),

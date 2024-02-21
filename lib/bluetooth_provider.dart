@@ -534,6 +534,7 @@ final koshianMeshSetupProvider = StateNotifierProvider<KoshianMeshSetupNotifier,
 
 enum KoshianMeshProxyState {
   disconnected,
+  scanning,
   connecting,
   connected,
   error,
@@ -564,6 +565,11 @@ class KoshianMeshProxyNotifier extends StateNotifier<KoshianMeshProxyState> {
   String _latestError = "";
   String get latestError => state == KoshianMeshProxyState.error ? _latestError : "";
 
+  String _proxyName = "";
+  String get proxyName =>
+      state == KoshianMeshProxyState.connected || state == KoshianMeshProxyState.connecting ?
+          _proxyName : "";
+
   void _clearSubscriptions() {
     _onMeshPduCreatedSubscription?.cancel();
     _onMeshPduCreatedSubscription = null;
@@ -581,15 +587,15 @@ class KoshianMeshProxyNotifier extends StateNotifier<KoshianMeshProxyState> {
     bool forceReconnect = false,
   }) async {
     try {
-      if (!forceReconnect && (state == KoshianMeshProxyState.connecting || state == KoshianMeshProxyState.connected)) {
-        logger.d("Already connecting or connected to proxy, no forced reconnect");
+      if (!forceReconnect && (state == KoshianMeshProxyState.scanning || state == KoshianMeshProxyState.connecting || state == KoshianMeshProxyState.connected)) {
+        logger.d("Already scanning, connecting or connected to proxy, no forced reconnect");
         return true;
       }
-      state = KoshianMeshProxyState.connecting;
-      if (forceReconnect && (state == KoshianMeshProxyState.connecting || state == KoshianMeshProxyState.connected)) {
+      if (forceReconnect && (state == KoshianMeshProxyState.scanning || state == KoshianMeshProxyState.connecting || state == KoshianMeshProxyState.connected)) {
         logger.d("Forced reconnect, disconnect or cancel first");
         await disconnect();
       }
+      state = KoshianMeshProxyState.scanning;
       logger.d("Attempt proxy connect (specific device: $specificDevice, timeout: $scanTimeout)");
       _proxyScanCompleter = Completer<DiscoveredDevice?>();
       _proxyScanListener = nordicNrfMesh.scanForProxy().listen((scannedDevice) {
@@ -625,6 +631,8 @@ class KoshianMeshProxyNotifier extends StateNotifier<KoshianMeshProxyState> {
         return false;
       }
       _proxyScanListener = null;
+      _proxyName = proxyDevice.name;
+      state = KoshianMeshProxyState.connecting;
       BleMeshManager().callbacks = _BleMeshManagerProxyCallbacks(nordicNrfMesh.meshManagerApi);
       _onMeshPduCreatedSubscription = nordicNrfMesh.meshManagerApi.onMeshPduCreated.listen((event) async {
         await BleMeshManager().sendPdu(event);

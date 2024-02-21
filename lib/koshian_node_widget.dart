@@ -21,14 +21,34 @@ class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
   bool redControl = false;
   bool greenControl = false;
   bool blueControl = false;
-  
+  bool isProxy = false;
+  bool isConnected = false;
+
   @override
   Widget build(BuildContext context) {
+    ref.listen(koshianMeshProxyProvider, (_, proxyState) {
+      setState(() {
+        if (ref.read(koshianMeshProxyProvider.notifier).proxyName == widget.node.name) {
+          isProxy = true;
+        }
+        else {
+          isProxy = false;
+        }
+        if (proxyState == KoshianMeshProxyState.connected) {
+          isConnected = true;
+        }
+        else {
+          isConnected = false;
+        }
+      });
+    });
     return Column(
       children: [
+        const SizedBox(height: 10,),
         Row(
           children: [
-            Padding(padding: const EdgeInsets.all(8.0), child: InkWell(
+            Expanded(child: Padding(padding: const EdgeInsets.all(8.0), child: InkWell(
+              splashFactory: NoSplash.splashFactory,
               onDoubleTap: () async {
                 showDialog(context: context, builder: (ctx) {
                   return AlertDialog(
@@ -55,11 +75,11 @@ class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.node.name),
-                  Text(widget.node.node.uuid),
+                  Text("名前：${widget.node.name}"),
+                  Text("UUID：${widget.node.node.uuid}"),
                 ],
               ),
-            )),
+            ))),
             Column(
               children: [
                 Row(
@@ -122,6 +142,19 @@ class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
                   },
                 ),
               ]
+            ),
+            SizedBox(
+              width: 80,
+              child: Center(
+                child: isProxy ? Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: isConnected ? Colors.green : Colors.orange,
+                    shape: BoxShape.circle,
+                  ),
+                ) : null,
+              ),
             ),
           ],
         ),
