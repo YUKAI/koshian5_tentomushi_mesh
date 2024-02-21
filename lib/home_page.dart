@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:koshian5_tentomushi_mesh/bluetooth_provider.dart';
-import 'package:koshian5_tentomushi_mesh/debug.dart';
 import 'package:koshian5_tentomushi_mesh/koshian_node_widget.dart';
 import 'package:koshian5_tentomushi_mesh/router.dart';
 import 'package:nordic_nrf_mesh/nordic_nrf_mesh.dart';
