@@ -73,8 +73,7 @@ class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
                         });
                         nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
                             widget.node.unicastAddress+8,
-                            redControl,
-                            await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(widget.node.unicastAddress)
+                            redControl
                         );
                       },
                     ),
@@ -87,8 +86,7 @@ class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
                         });
                         await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
                             widget.node.unicastAddress+2,
-                            greenControl,
-                            await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(widget.node.unicastAddress)
+                            greenControl
                         );
                       },
                     ),
@@ -101,8 +99,7 @@ class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
                         });
                         await nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
                             widget.node.unicastAddress+7,
-                            blueControl,
-                            await nordicNrfMesh.meshManagerApi.getSequenceNumberForAddress(widget.node.unicastAddress)
+                            blueControl
                         );
                       },
                     ),

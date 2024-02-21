@@ -13,23 +13,15 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  List<KoshianNode> meshNodes = [];
-  Map<int, List<dynamic>> nodeControlStates = {};
+  double motorControl = 0.0;
+  bool ledControl = false;
 
   @override
   Widget build(BuildContext context) {
     NetworkKey? meshNetworkKey = ref.watch(meshNetworkKeyProvider);
     IMeshNetwork? meshNetwork = ref.watch(meshNetworkProvider);
     var proxyConnectionState = ref.watch(koshianMeshProxyProvider);
-    ref.listen(koshianNodeListProvider, (prev, next) {
-      for (var n in next) {
-        if (!nodeControlStates.containsKey(n.unicastAddress)) {
-          nodeControlStates[n.unicastAddress] = [0.0,false,false,false];
-        }
-      }
-      meshNodes = next;
-      setState(() {});
-    });
+    var meshNodes = ref.watch(koshianNodeListProvider);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -61,15 +53,75 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            const Text("Home"),
-            Text("Network: ${meshNetwork?.id ?? "None"}"),
-            Text("Network key: ${meshNetworkKey?.netKeyBytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join("") ?? "None"}"),
-            OutlinedButton(
-              onPressed: () async {
-                await ref.read(meshNetworkProvider.notifier).reset();
-              },
-              child: const Text("Reset network")
+            Row(
+              children: [
+                Padding(padding: const EdgeInsets.all(8.0), child: InkWell(
+                  onDoubleTap: () async {
+                    showDialog(context: context, builder: (ctx) {
+                      return AlertDialog(
+                        title: const Text("ネットワークをリセットしますか？"),
+                        content: const Text("追加済みのノードはすべて消されます。"),
+                        actions: [
+                          TextButton(
+                              onPressed: () async {
+                                Navigator.of(ctx).pop(null);
+                                await ref.read(meshNetworkProvider.notifier).reset();
+                              },
+                              child: const Text("はい")
+                          ),
+                          TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(null);
+                              },
+                              child: const Text("キャンセル")
+                          ),
+                        ],
+                      );
+                    });
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("ネットワークUUID: ${meshNetwork?.id ?? "無"}"),
+                      Text("ネットワークキー: ${meshNetworkKey?.netKeyBytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join("") ?? "無"}"),
+                    ],
+                  ),
+                )),
+                Column(
+                    children: [
+                      ColorToggleButton(
+                        color: Colors.black,
+                        value: ledControl,
+                        onPressed: () async {
+                          setState(() {
+                            ledControl = !ledControl;
+                          });
+                          nordicNrfMesh.meshManagerApi.sendGenericOnOffSet(
+                              0xffff,
+                              ledControl
+                          );
+                        },
+                      ),
+                      Slider(
+                        value: motorControl,
+                        onChanged: (val) {
+                          setState(() {
+                            motorControl = val;
+                          });
+                        },
+                        onChangeEnd: (val) async {
+                          await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
+                            0xffff,
+                            (val*32767).toInt(),
+                          );
+                        },
+                      ),
+                    ]
+                ),
+              ],
             ),
+            const Divider(height: 1, thickness: 0, indent: 0, endIndent: 0),
+            const Divider(height: 1, thickness: 0, indent: 0, endIndent: 0),
             ...meshNodes.map((n) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
