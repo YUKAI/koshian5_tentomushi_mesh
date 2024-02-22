@@ -137,7 +137,7 @@ class _KoshianNodeWidgetState<T> extends ConsumerState<KoshianNodeWidget> {
                   onChangeEnd: (val) async {
                     await nordicNrfMesh.meshManagerApi.sendGenericLevelSet(
                       widget.node.unicastAddress+1,
-                      (val*32767).toInt(),
+                      val.toInt(),
                     );
                   },
                 ),
