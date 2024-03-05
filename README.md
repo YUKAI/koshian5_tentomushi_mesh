@@ -36,8 +36,8 @@
 1. [FVM (Flutter Version Manager)](https://fvm.app/) を入手します。 [(参考)](https://zenn.dev/altiveinc/articles/flutter-version-management)
 1. [Android Studio](https://developer.android.com/studio?hl=ja)を入手します。
     - 推奨バージョン 2023.1.1
-1. 本リポジトリのcloneします。
-    - ※Submodulesのcloneを忘れないこと：
+1. 本リポジトリをcloneします。
+    - ※ Submodulesのcloneを忘れずに行ってください：
       ```
       git clone git@github.com:YUKAI/koshian5_tentomushi_mesh.git --recursive
       cd koshian5_tentomushi_mesh
@@ -48,34 +48,34 @@
       fvm use
       ```
 1. 本リポジトリのルートフォルダをAndroid Studioで開きます。
-    - File > Open > {本フォルダ}
+    - メインメニューから `File` > `Open` > {本フォルダ} を開きます。
 1. Android Studio 上で`lib/main.dart`ファイルを開きます。
-1. ファイル上部にリンクが出現したら `Install Dart plugin` を実行します。
-1. ファイル上部にリンクが出現したら `Download Dart SDK` をタップします。
-    - https://dart.dev/get-dart に飛ぶので記載の手順に従いインストールします。
+1. エディタ上部にリンクが出現したら `Install Dart plugin` を実行します。
+1. エディタ上部にリンクが出現したら `Download Dart SDK` をタップします。
+    - https://dart.dev/get-dart に飛ぶので記載の手順に従いDart SDKをインストールします。
 1. Android Studioの右上の `⚙` または `↑` から、`SDK Manager...` をタップします。
     - サイドメニュー `Languages & Frameworks` から
-      - `Android SDK`
+      - `Android SDK` から
         - Android SDK が入っていなければ、インストール対象の端末に合わせてSDKをインストールします。
-      - `Dart`
-        - `Enable Dart Support for the project ...` をチェック
+      - `Dart` から
+        - `Enable Dart Support for the project ...` をチェックします。
         - `Dart SDK Path` を設定します。
           - `...` ボタンから本フォルダ以下の `.fvm/flutter_sdk/bin/cache/dart-sdk` を選択します。
-            - OS X で隠しフォルダが表示されない場合は `⌘-⇧-G` でパスをテキスト入力します。
-        - `Enable Dar support for the following modules:` から、 `Project 'koshian5_...'` を選択します。
-      - `OK`
+            - ※ OS X で隠しフォルダが表示されない場合は `⌘ + ⇧ + G` でパスをテキスト入力します。
+        - `Enable Dart support for the following modules:` から、 `Project 'koshian5_...'` にチェックを入れます。
+      - `OK` で SDK Manager を閉じます。
 1. Android Studioの右上の `⚙` または `↑` から、`Plugins...` をタップします。
     - 表示されたプラグインから `Flutter` をインストールします。
-    - `Restart IDE`
+    - `Restart IDE` で Android Studio を再起動します。
 1. Android Studioの右上の `⚙` または `↑` から、`SDK Manager...` をタップします。
     - サイドメニュー `Languages & Frameworks` から
-      - `Flutter`
+      - `Flutter` から
         - `Flutter SDK Path` を設定します。
           - `...` ボタンから本フォルダ以下の `.fvm/flutter_sdk` を選択します。
-        - `OK`
+      - `OK` で SDK Manager を閉じます。
 ## ビルド
 1. Android Studioのメインメニューから `Build` > `Flutter` > `Build APK` でビルドします。
-    - 以下のように出ればビルド成功です。
+    - 以下のように出力されればビルド成功です。
       ```
       ✓  Built build/app/outputs/flutter-apk/app-release.apk (xx.xMB).
       Process finished with exit code 0
@@ -83,7 +83,7 @@
 
 ## 実行
 1. デバッグ対象の端末で開発者オプションを有効化します。
-    - Pixelの場合は、 `設定` > `デバイス情報` > `ビルド番号` を数回連続してタップしてPINナンバーを入力して有効化します。
+    - Google Pixelの例） `設定` > `デバイス情報` > `ビルド番号` を数回連続してタップしてPINナンバーを入力して有効化します。
 1. USBデバッグを有効化します。
     - `設定` > `システム` > `開発者向けオプション` > `USB デバッグ` をON
 1. PCに接続します。
@@ -91,4 +91,5 @@
 1. Android Studioで `▶` 実行ボタンをタップします。
     - （ここは時間がかかります）
 1. 無事に実行できると `Koshianテントウムシ` というアプリがインストールされます。
+    - <img src="./README.images/app_fv.png" width="40%">
 
