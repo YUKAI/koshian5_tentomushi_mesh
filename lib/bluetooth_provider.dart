@@ -604,7 +604,7 @@ class KoshianMeshProxyNotifier extends StateNotifier<KoshianMeshProxyState> {
       _proxyScanCompleter = Completer<DiscoveredDevice?>();
       _proxyScanListener = nordicNrfMesh.scanForProxy().listen((scannedDevice) {
         logger.i("Proxy scanned device: $scannedDevice");
-        if (scannedDevice.serviceData.containsKey(meshProxyUuid)) {
+        if (scannedDevice.serviceData.containsKey(meshProxyUuid) && scannedDevice.name.isNotEmpty) {
           if (specificDevice != null  &&  specificDevice.id != scannedDevice.id) {
             return;
           }
