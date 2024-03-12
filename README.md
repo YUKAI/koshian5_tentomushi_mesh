@@ -11,7 +11,7 @@
 - ノードの役割が動的に決まることで、ネットワークが自動修復される頑健性を備えます：
   <img src="./README.images/mesh-robustness-01.png" width="80%">
 ### 特長２: 到達距離
-- マルチホップによって従来のBLEの到達距離を上回る距離で通信することができます：
+- マルチホップによって従来のBLEよりも到達距離を伸ばしながら双方向通信ができます：
   <img src="./README.images/mesh-distance.png" width="80%">
 
 ## Koshian 5 の Bluetooth Mesh 機能について
@@ -28,10 +28,18 @@
 - アプリのMeshネットワークの構築操作（Provisioning）
   - Koshian 5の電源をONします。
   - アプリの `追加` ボタンから対象のKoshian 5を選択します。
+
+    <img src="./README.images/provision_begin.png" width="30%">
+    <img src="./README.images/provision_scan.png" width="30%">
+    <img src="./README.images/provision_do.png" width="30%">
+
 - ネットワークノードの表示とノードに対する操作
   - `Proxy未接続` ボタンから Proxy への接続を開始します。
   - その後、赤丸、緑丸、青丸、スライダー、を操作すると対応するノードのLEDやモーターが制御できます。
-    - ※一番上は全ノードに一括指令するためのUIです。
+
+    <img src="./README.images/command_each_led.png" width="30%">
+    <img src="./README.images/command_each_slider.png" width="30%">
+    <img src="./README.images/command_broadcast.png" width="30%">
 
 
 ## タミヤ「ぷるぷる・テントウムシ」に乗せてつかう場合
