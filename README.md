@@ -1,14 +1,26 @@
-# koshian5_tentomushi_mesh
+# 概要
 
-[Koshian 5](https://www.macnica.co.jp/business/semiconductor/macnica_products/makers/143699/)をBluetooth Mesh経由で制御するデモンストレーションアプリです。
+[Koshian 5](https://www.macnica.co.jp/business/semiconductor/macnica_products/makers/143699/)をBluetooth Mesh経由で制御するデモンストレーションアプリのリポジトリです。
 
-# Koshian 5 の Bluetooth Meshネットワーク機能の概要
+# Bluetooth Mesh の概要
+## Bluetooth Mesh とは？
+- Bluetooth 5 以降で搭載されたメッシュネットワーク通信機能です。
+- 量産製品での活用事例としては、無線で連動する照明器具などに使われています。製品での活用については、これから盛り上がっていくことが期待されている技術です。
+## Bluetooth Mesh の特長
+### 特長１: 頑健性
+- ノードの役割が動的に決まることで、ネットワークが自動修復される頑健性を備えます：
+  <img src="./README.images/mesh-robustness-01.png" width="80%">
+### 特長２: 到達距離
+- マルチホップによって従来のBLEの到達距離を上回る距離で通信することができます：
+  <img src="./README.images/mesh-distance.png" width="80%">
 
+## Koshian 5 の Bluetooth Mesh 機能について
 - Bluetooth Mesh ネットワークはノードが受信したパケットを再度送信（`Relay`）することでネットワーク全体に行き渡らせる flood型のネットワークです。
-- Meshネットワークにノードを追加する操作はパケットを解読するための鍵を渡すことで実現され、 `Provisioning` と呼ばれます。
 - 典型的なスマートフォンからのBLE通信であるGATTテーブルに基づくやり取りと、Meshネットワーク上のやり取りとを仲介するノードを `Proxy` と呼びます。
+- Meshネットワークにノードを追加する操作はパケットを解読するための鍵を渡すことで実現され、 `Provisioning` と呼ばれます。
 - Koshian 5 は `Proxy` および `Relay` の役割を有効化することができます。
 - 本アプリでは、`Proxy` ノードを経由してメッシュネットワーク上の各ノードに対してGPIO指令を行うことで、LEDやモーターなどKoshian 5の外につないだデバイスを制御します。
+
 
 # アプリの使い方
 
