@@ -111,5 +111,4 @@
 1. Android Studioで `▶` 実行ボタンをタップします。
     - （ここは時間がかかります）
 1. 無事に実行できると `Koshianテントウムシ` というアプリがインストールされます。
-    - <img src="./README.images/app_fv.png" width="40%">
 
