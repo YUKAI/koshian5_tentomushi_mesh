@@ -24,22 +24,28 @@
 
 # アプリの使い方
 
-アプリの機能は大きく2つあります。
-- アプリのMeshネットワークの構築操作（Provisioning）
-  - Koshian 5の電源をONします。
-  - アプリの `追加` ボタンから対象のKoshian 5を選択します。
+アプリの機能は主に3つあります。
+- Meshネットワークの構築操作（Provisioning）
+  - 周囲のKoshian 5をスキャンし、状態を表示したり、一つずつMeshネットワークに追加する操作が行えます。
+    <img src="./README.images/provisioning.gif" width="60%">
+  - ノード一覧でノードをダブルタップするとノードをMeshネットワークから除外できます。
 
-    <img src="./README.images/provision_begin.png" width="30%">
-    <img src="./README.images/provision_scan.png" width="30%">
-    <img src="./README.images/provision_do.png" width="30%">
+    <img src="./README.images/remove_node.jpg" width="30%">
+  - ノード一覧でネットワーク（一番上に表示された要素）をダブルタップするとネットワークを初期化できます。
 
-- ネットワークノードの表示とノードに対する操作
-  - `Proxy未接続` ボタンから Proxy への接続を開始します。
-  - その後、赤丸、緑丸、青丸、スライダー、を操作すると対応するノードのLEDやモーターが制御できます。
+- ノードの一覧表示
+  - Meshネットワークのノードを一覧表示し、Proxyの状態（スキャン中、接続済みなど）を表示します。
+    この機能により、Proxyの自動切り替わり、アプリからMeshネットワークへの接続の再構築の様子が確認できます。
 
-    <img src="./README.images/command_each_led.png" width="30%">
-    <img src="./README.images/command_each_slider.png" width="30%">
-    <img src="./README.images/command_broadcast.png" width="30%">
+    <img src="./README.images/proxy_recovery.gif" width="45%">
+
+- ノードに対する操作
+  - 各ノードのLEDボタンとモーターのスライダーを操作すると、各ノードのLED/モータが制御できます。
+
+    <img src="./README.images/command_each_led.png" width="45%">
+  - ネットワーク（一番上に表示された要素）のLEDボタンやモーターのスライダーを操作すると、全ノードのLED/モータを制御できます。
+
+    <img src="./README.images/command_broadcast.png" width="45%">
 
 
 ## タミヤ「ぷるぷる・テントウムシ」に乗せてつかう場合
@@ -47,7 +53,7 @@
 - 展示においてはGPIO出力を[タミヤ「ぷるぷる・テントウムシ（振動移動タイプ）」](https://tamiyashop.jp/shop/g/g71117/)および外部LEDに接続する専用基板を用意し、Mesh経由でテントウムシのモーターを駆動したり、ノードの状態をLEDで表示したりするデモを行いました。
 
 ## konashi 5として使う場合
-- Koshian 5をkonashi 5に搭載して用いる場合、（TODO）
+- Koshian 5をkonashi 5 ベースボードに搭載して用いる場合、アプリの緑のLEDボタンが基板上のLED1（赤色）に対応します。
 
 # ビルド手順
 
