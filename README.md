@@ -57,10 +57,9 @@
 # ビルド手順
 
 ## 環境構築
-1. [Android Studio](https://developer.android.com/studio?hl=ja)を入手します。 [(参考)](https://qiita.com/Keisuke-Magara/items/e07055cd253881b3b4b4)
-1. [FVM (Flutter Version Manager)](https://fvm.app/) を入手します。 [(参考)](https://zenn.dev/altiveinc/articles/flutter-version-management)
 1. [Android Studio](https://developer.android.com/studio?hl=ja)を入手します。
     - 推奨バージョン 2023.1.1
+1. [FVM (Flutter Version Manager)](https://fvm.app/) を入手します。 [(参考)](https://zenn.dev/altiveinc/articles/flutter-version-management)
 1. 本リポジトリをcloneします。
     - ※ Submodulesのcloneを忘れずに行ってください：
       ```
